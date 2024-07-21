@@ -94,6 +94,13 @@ AppendToPSProfile @(
 # See: https://github.com/jazzdelightsme/WingetPathUpdater
 winget install WingetPathUpdater
 
+# A `sudo` equivalent for Windows
+# See: https://github.com/gerardog/gsudo
+FindCommandOr "gsudo" {
+    Write-Output "Install gsudo..."
+    winget install --exact --id gerardog.gsudo
+}
+
 # A file archiver
 # See: https://www.7-zip.org/
 FindCommandOr "7z" {
