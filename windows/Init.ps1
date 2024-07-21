@@ -23,6 +23,7 @@ function FindFontOr($font, $else) {
 
 function MakeDirIfDoesNotExist($directory) {
     New-Item -ItemType "Directory" -Path "$directory" -Force
+    return "$directory"
 }
 
 function Download($url) {
@@ -35,6 +36,11 @@ function 7zExtractTar($from, $to) {
     7z x -so "$from" | 7z x -si -aoa -ttar -o"$to"
 }
 
+function AppendToPSProfile([string[]] $commands) {
+    $commands += ''
+    $commands | ForEach { Add-Content -Path "$Profile" -Value "$_" }
+}
+
 
 ############################### Helper variables ###############################
 
@@ -44,6 +50,12 @@ $DOWNLOAD_PATH = (
 
 
 ################################ Initialization ################################
+
+AppendToPSProfile @(
+    '#####################################################'
+    '# The following commands are appended automatically #'
+    '#####################################################'
+)
 
 # TODO: init WSL2
 
@@ -69,7 +81,7 @@ FindCommandOr "git" {
     winget install --exact --id Git.Git --interactive
 
     Write-Output "Setting up user git configuration..."
-    Copy-Item -Path "..\common\.gitconfig" -Destination "$HOME"
+    Copy-Item -Path (Join-Path ".." "common" ".gitconfig") -Destination "$HOME"
     git config --global core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"
     # TODO: ssh configuration
 }
@@ -77,7 +89,7 @@ FindCommandOr "git" {
 FindFontOr "JetBrainsMono NF" {
     $gitTag = "v3.2.1"
     $downloadedFilePath = Download "https://github.com/ryanoasis/nerd-fonts/releases/download/$gitTag/JetBrainsMono.tar.xz"
-    $extractedDirPath = "$DOWNLOAD_PATH\JetBrainsMono"
+    $extractedDirPath = Join-Path "$DOWNLOAD_PATH" "JetBrainsMono"
 
     7zExtractTar "$downloadedFilePath" "$extractedDirPath"
 
@@ -94,11 +106,18 @@ FindCommandOr "starship" {
     winget install --exact --id Starship.Starship
 
     Write-Output "Setting up starship configuration..."
-    $destination = "$HOME\.config"
-    MakeDirIfDoesNotExist "$destination"
-    Copy-Item -Path "..\common\starship.toml" -Destination "$destination"
+    $file = "starship.toml"
+    $dir = ".config"
+    $dirPath = MakeDirIfDoesNotExist (Join-Path "$HOME" "$dir")
+    Copy-Item -Path (Join-Path ".." "common" "$file") -Destination "$filePath"
 
-    # TODO: append starship runner to $Profile
+    Write-Output "Append starship runner to PowerShell user profile..."
+    $sep = [IO.Path]::DirectorySeparatorChar
+    AppendToPSProfile @(
+        '# Starship cross-shell prompt runner',
+        "`$ENV:STARSHIP_CONFIG = `"`$HOME$sep$dir$sep$file`"",
+        'Invoke-Expression (&starship init powershell)',
+    )
 }
 
 FindCommandOr "code" {
