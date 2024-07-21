@@ -90,7 +90,7 @@ AppendToPSProfile @(
 
 # TODO: init WSL2
 
-# Update PATH variable after package installation
+# Update PATH variable after package installation via `winget`
 # See: https://github.com/jazzdelightsme/WingetPathUpdater
 winget install WingetPathUpdater
 
@@ -109,12 +109,15 @@ FindCommandOr "7z" {
     AddToEnvPath (Join-Path "$ENV:ProgramFiles" "7-Zip")
 }
 
+# A text editor, mostly for git
 FindCommandOr "vim" {
     Write-Output "Install vim..."
     Write-Output "NOTE: check the box 'Create .bat files' for command line use."
     winget install --exact --id vim.vim --interactive
 }
 
+# A version control system
+# See: https://git-scm.com/download/win
 FindCommandOr "git" {
     Write-Output "Install git..."
     winget install --exact --id Git.Git --interactive
@@ -125,6 +128,9 @@ FindCommandOr "git" {
     # TODO: ssh configuration
 }
 
+# Nerd fonts
+# See patched fonts: https://www.nerdfonts.com/
+# See original fonts: https://www.jetbrains.com/lp/mono/
 FindFontOr "JetBrainsMono NF" {
     $gitTag = "v3.2.1"
     $downloadedFilePath = Download "https://github.com/ryanoasis/nerd-fonts/releases/download/$gitTag/JetBrainsMono.tar.xz"
@@ -159,6 +165,8 @@ FindCommandOr "starship" {
     )
 }
 
+# A code editor
+# See: https://code.visualstudio.com/
 FindCommandOr "code" {
     Write-Output "Install Microsoft Visual Studio Code..."
     winget install --exact --id Microsoft.VisualStudioCode --interactive
