@@ -3,7 +3,7 @@
 
 ############################### Helper functions ###############################
 
-function FindCommandOr($command, $else) {
+function FindCommandOr([String] $command, [ScriptBlock] $else) {
     Get-Command $command -ErrorAction "SilentlyContinue" | Out-Null
     if (-not $?) {
         $else.Invoke()
@@ -11,7 +11,7 @@ function FindCommandOr($command, $else) {
     }
 }
 
-function FindFontOr($font, $else) {
+function FindFontOr([String] $font, [ScriptBlock] $else) {
     [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing")
     $fonts = (
             New-Object System.Drawing.Text.InstalledFontCollection
@@ -21,24 +21,55 @@ function FindFontOr($font, $else) {
     }
 }
 
-function MakeDirIfDoesNotExist($directory) {
+function MakeDirIfDoesNotExist([String] $directory) {
     New-Item -ItemType "Directory" -Path "$directory" -Force
     return "$directory"
 }
 
-function Download($url) {
+function Download([String] $url) {
     $path = Join-Path "$DOWNLOAD_PATH" (Split-Path "$url" -Leaf)
     Invoke-WebRequest "$url" -OutFile "$path"
     return "$path"
 }
 
-function 7zExtractTar($from, $to) {
+function 7zExtractTar([String] $from, [String] $to) {
     7z x -so "$from" | 7z x -si -aoa -ttar -o"$to"
 }
 
-function AppendToPSProfile([string[]] $commands) {
+function AppendToPSProfile([String[]] $commands) {
     $commands += ''
     $commands | ForEach { Add-Content -Path "$Profile" -Value "$_" }
+}
+
+function AddSemicolon([String] $str) {
+    if (-not $str) {
+        $str = ";"
+    }
+    if ($str[$str.Length - 1] -ne ";") {
+        $str += ";"
+    }
+    return $str
+}
+
+function AddToEnvPath([String] $path) {
+    $currentPaths = (
+            Get-Item HKCU:\Environment
+        ).getValue("PATH", $null, "DoNotExpandEnvironmentNames")
+
+    if ("$current" -like "*$path*") {
+        return
+    }
+
+    $newPaths = "$currentPaths"
+    $newPaths = AddSemicolon "$newPaths"
+    $newPaths += "$path;"
+
+    # Update PATH globally
+    Set-ItemProperty HKCU:\Environment PATH "$newPaths" -Type ExpandString
+
+    # Update PATH for the current Terminal session
+    $ENV:PATH = AddSemicolon "$ENV:PATH"
+    $ENV:PATH += "$path;"
 }
 
 
@@ -63,11 +94,12 @@ AppendToPSProfile @(
 # See: https://github.com/jazzdelightsme/WingetPathUpdater
 winget install WingetPathUpdater
 
+# A file archiver
+# See: https://www.7-zip.org/
 FindCommandOr "7z" {
     Write-Output "Install 7-Zip..."
     winget install --exact --id 7zip.7zip
-
-    # TODO: add "$ENV:ProgramFiles\7-Zip" to PATH
+    AddToEnvPath (Join-Path "$ENV:ProgramFiles" "7-Zip")
 }
 
 FindCommandOr "vim" {
