@@ -77,12 +77,14 @@ FindCommandOr "git" {
 FindFontOr "JetBrainsMono NF" {
     $gitTag = "v3.2.1"
     $downloadedFilePath = Download "https://github.com/ryanoasis/nerd-fonts/releases/download/$gitTag/JetBrainsMono.tar.xz"
+    $extractedDirPath = "$DOWNLOAD_PATH\JetBrainsMono"
 
-    Set-Location "$DOWNLOAD_PATH"
-    7zExtractTar "$downloadedFilePath" "JetBrainsMono"
-    Remove-Item "$downloadedFilePath" -Force
+    7zExtractTar "$downloadedFilePath" "$extractedDirPath"
 
     # TODO: install fonts
+
+    Remove-Item "$downloadedFilePath" -Force
+    Remove-Item "$extractedDirPath" -Force -Recurse
 }
 
 # Starship cross-shell prompt
