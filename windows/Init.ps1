@@ -10,7 +10,30 @@ AppendToPSProfile @(
     '#####################################################'
 )
 
-# TODO: init WSL2
+# WSL2 init
+# See: https://learn.microsoft.com/en-us/windows/wsl/install-manual
+# See:
+Invoke-Command -ScriptBlock {
+    Print "Enabling optional features to make WSL2 works..."
+    gsudo {
+        dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+        dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+    }
+
+    #TODO: restart
+
+    $downloadedFilePath = Download "https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi"
+
+    Print "Installing the Linux kernel update package..."
+    Start-Process "$downloadedFilePath" -Wait
+
+    Print "Removing $downloadedFilePath..."
+    Remove-Item "$downloadedFilePath" -Force
+
+    Print "Setting up WSL2"
+    wsl --set-default-version 2
+    # TODO: install linux distro
+}
 
 # Update PATH variable after package installation via `winget`
 # See: https://github.com/jazzdelightsme/WingetPathUpdater
