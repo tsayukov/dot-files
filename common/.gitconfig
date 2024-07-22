@@ -1,0 +1,16 @@
+[user]
+  name = Pavel Tsayukov
+  email = p.tsayukov@gmail.com
+
+[core]
+  editor = vim
+
+[init]
+  defaultBranch = main
+
+[alias]
+  st = status
+  adda = add --all
+  cm = commit -m
+  co = checkout
+  cob = checkout -b
