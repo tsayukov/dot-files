@@ -3,6 +3,8 @@
 
 ############################### Helper variables ###############################
 
+$USER_EMAIL = "p.tsayukov@gmail.com"
+
 $DOWNLOAD_PATH = (
         New-Object -ComObject "Shell.Application"
     ).NameSpace("shell:Downloads").Self.Path
