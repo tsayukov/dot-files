@@ -97,4 +97,139 @@ FindCommandOr "code" {
     winget install --exact --id Microsoft.VisualStudioCode --interactive
 }
 
+# The Rust toolchain installer
+# See: https://www.rust-lang.org/
+FindCommandOr "rustup" {
+    Print "Installing rustup..."
+    winget install --exact --id Rustlang.Rustup
+}
+
+# A line-oriented search tool
+# See: https://github.com/BurntSushi/ripgrep
+FindCommandOr "rg" {
+    Print "Installing ripgrep..."
+    winget install --exact --id BurntSushi.ripgrep.MSVC
+}
+
+# TODO: install Python 3
+
+# TODO: install CMake
+
+# TODO: install LLVM
+
+################################## Netsurfing ##################################
+
+# A web browser
+# See: https://www.mozilla.org/
+InteractiveInstall "Mozilla Firefox" "Mozilla.Firefox"
+
+# A clien app for connecting to VPN server
+# See: https://github.com/Jigsaw-Code/outline-apps
+Invoke-Command -ScriptBlock {
+    $gitTag = "v1.10.1"
+    $downloadedFilePath = Download "https://github.com/Jigsaw-Code/outline-apps/releases/download/$gitTag/Outline-Client.exe"
+
+    Print "Installing Outline Client..."
+    Start-Process "$downloadedFilePath" -Wait
+
+    Print "Removing $downloadedFilePath..."
+    Remove-Item "$downloadedFilePath" -Force
+}
+
+
+################################## Encrypting ##################################
+
+# A password manager
+# See: https://bitwarden.com/
+InteractiveInstall "Bitwarden" "Bitwarden.Bitwarden"
+
+# A disk encryption app
+# See: https://veracrypt.fr/
+InteractiveInstall "VeraCrypt" "IDRIX.VeraCrypt"
+
+
+################################ Virtualization ################################
+
+# OS-level virtualization via using containers
+# See: https://www.docker.com/
+InteractiveInstall "Docker Desktop" "Docker.DockerDesktop"
+
+# A hosted hypervisor for x86 virtualization
+# See: https://www.virtualbox.org/
+InteractiveInstall "Virtual Box" "Oracle.VirtualBox"
+
+
+################################ Messaging apps ################################
+
+# A messaging app
+# See: https://desktop.telegram.org
+InteractiveInstall "Telegram Desktop" "Telegram.TelegramDesktop"
+
+
+############################### Graphic editors ################################
+
+# An image and photo editor
+# See: https://getpaint.net/
+InteractiveInstall "paint.net" "dotPDNLLC.paintdotnet"
+
+# Interface design editor
+# See: https://www.figma.com/
+InteractiveInstall "Figma" "Figma.Figma"
+
+# A vector graphics editor
+# See: https://inkscape.org/
+InteractiveInstall "Inkscape" "Inkscape.Inkscape"
+
+
+#################################### Video #####################################
+
+# An audio and video player
+# See: https://codecguide.com/
+InteractiveInstall "K-Lite Full Codec Pack" "CodecGuide.K-LiteCodecPack.Full"
+
+# Video recording and live streaming
+# See: https://obsproject.com/
+InteractiveInstall "OBS Studio" "OBSProject.OBSStudio"
+
+
+################################### Viewers ####################################
+
+# A PDF/eBook/XPS/DjVu/CHM/CBZ/CBR viewer
+# See: https://www.sumatrapdfreader.org/free-pdf-reader
+InteractiveInstall "SumatraPDF" "SumatraPDF.SumatraPDF"
+
+
+################################### Writing ####################################
+
+# Writing app based on the Markdown format
+# See: https://obsidian.md/
+InteractiveInstall "Obsidian" "Obsidian.Obsidian"
+
+
+#################################### Files #####################################
+
+# A BitTorrent client
+# See: https://transmissionbt.com/
+InteractiveInstall "Transmission" "Transmission.Transmission"
+
+# A cloud storage
+# See: https://disk.yandex.ru/
+InteractiveInstall "Yandex.Disk" "Yandex.Disk"
+
+
+#################################### Games #####################################
+
+# A video game digital distribution service
+# See: https://store.steampowered.com/
+winget install --exact --id Valve.Steam --interactive
+InteractiveInstall "Steam" "Valve.Steam"
+
+
+################################# Miscellaneous ################################
+
+# TODO: install Типографская раскладка Ильи Бирмана
+
+
+############################# The end of the file ##############################
+
 Print "Please, re-run Terminal!"
