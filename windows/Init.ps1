@@ -46,8 +46,29 @@ FindCommandOr "git" {
 
     Print "Setting up user git configuration..."
     Copy-Item -Path (Join-Path ".." "common" ".gitconfig") -Destination "$HOME"
-    git config --global core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"
-    # TODO: ssh configuration
+
+    Print "Setting up the ssh-agent service..."
+    $sshAgentService = Get-Service -Name "ssh-agent"
+    Start-Service $sshAgentService
+    gsudo {
+        $sshAgentService | Set-Service -StartupType "Automatic"
+    }
+    AddToEnvPath (Split-Path $sshAgentService.BinaryPathName -Parent)
+
+    Print "Setting up git ssh command..."
+    $sshAgentUnixPath = $sshAgentService.BinaryPathName.Replace('\', '/').ToLower()
+    git config --global core.sshCommand "$sshAgentUnixPath"
+
+    Print "Generating ssh keys..."
+    $sshConfigPath = MakeDirIfDoesNotExist (Join-Path "$HOME" ".ssh")
+    $sshPrivateKeyPath = Join-Path "$sshConfigPath" "id_ed25519"
+    ssh-keygen -t ed25519 -C "$USER_EMAIL" -f "$sshPrivateKeyPath"
+
+    $sshPublicKeyPath = "$sshPrivateKeyPath.pub"
+    Print "This is your public key: `"$(Get-Content "$sshPublicKeyPath")`""
+
+    Print "Adding your ssh keys to the ssh-agent..."
+    ssh-add "$sshKeyPath"
 }
 
 # Nerd fonts
