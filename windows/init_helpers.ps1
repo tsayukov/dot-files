@@ -10,6 +10,15 @@ $DOWNLOAD_PATH = (
 
 ############################### Helper functions ###############################
 
+function Print([String] $message) {
+    Write-Information "$message" -InformationAction Continue
+}
+
+function InteractiveInstall([String] $package, [String] $id) {
+    Print "Installing $package..."
+    winget install --exact --id "$id" --interactive
+}
+
 function FindCommandOr([String] $command, [ScriptBlock] $else) {
     Get-Command $command -ErrorAction "SilentlyContinue" | Out-Null
     if (-not $?) {
@@ -35,6 +44,7 @@ function MakeDirIfDoesNotExist([String] $directory) {
 
 function Download([String] $url) {
     $path = Join-Path "$DOWNLOAD_PATH" (Split-Path "$url" -Leaf)
+    Print "Downloading $url..."
     Invoke-WebRequest "$url" -OutFile "$path"
     return "$path"
 }
