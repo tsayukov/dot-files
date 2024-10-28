@@ -75,22 +75,53 @@ sudo apt update && sudo apt upgrade
 # Homebrew on Linux
 # See: https://docs.brew.sh/Homebrew-on-Linux
 
-if ! command -v brew &> /dev/null
-then
-    echo "Installing requirements for homebrew..."
+if [ ! $(command -v brew) ]; then
+    echo 'Installing requirements for homebrew...'
     sudo apt install build-essential procps curl file git
+    echo 'Installing requirements for homebrew - done'
 
-    echo "Installing homebrew..."
-    test -d ~/.linuxbrew && eval "$(~/.linuxbrew/bin/brew shellenv)"
+    echo 'Installing homebrew...'
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'Installing homebrew - done'
+
+    echo 'Adding homebrew to the PATH and bash shell rcfile...'
     test -d /home/linuxbrew/.linuxbrew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    echo -e '\n' >> ~/.bashrc
     echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> ~/.bashrc
+    echo 'Adding homebrew to the PATH and bash shell rcfile - done'
 fi
 
-# git configuration
+# Install libfuse2 for AppImages
 
-cp ../common/.gitconfig ~/.gitconfig
+sudo apt install libfuse2
 
-# ssh configuration
+# Install vim
+
+if [ ! $(command -v vim) ]; then
+    echo 'Install vim...'
+    brew install vim
+    echo 'Install vim - done'
+fi
+
+# Git configuration
+
+if [ -z "$(git config --global user.name)" ]; then
+    read -p 'Git config: enter your name: ' GIT_USER_NAME
+    git config --global user.name "$GIT_USER_NAME"
+    echo "Git config: set the user's name to '$(git config --global user.name)'"
+    unset GIT_USER_NAME
+
+    read -p 'Git config: enter your email: ' GIT_USER_EMAIL
+    git config --global user.email "$GIT_USER_EMAIL"
+    echo "Git config: set the user's email to '$(git config --global user.email)'"
+    unset GIT_USER_EMAIL
+
+    echo "Git config: append other common parameters to ~/.gitconfig..."
+    cat ../common/.gitconfig >> ~/.gitconfig
+    echo "Git config: append other common parameters to ~/.gitconfig - done"
+fi
+
+# SSH configuration
 
 if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]
 then
