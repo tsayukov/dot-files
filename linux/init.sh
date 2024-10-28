@@ -123,46 +123,68 @@ fi
 
 # SSH configuration
 
-if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]
-then
-    echo "Copy ssh keys from Windows"
-    mkdir ~/.ssh
-    cp /mnt/c/users/$WINDOWS_USER/.ssh/id_ed25519 ~/.ssh/id_ed25519
-    cp /mnt/c/users/$WINDOWS_USER/.ssh/id_ed25519.pub ~/.ssh/id_ed25519.pub
-fi
+if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]; then
+    # Copying/generating SSH keys
 
-sudo chmod 600 ~/.ssh/id_ed25519
-sudo chmod 600 ~/.ssh/id_ed25519.pub
+    if [ "$AS_WSL" = 'true' ]; then
+        echo 'Copying the ssh keys from Windows...'
+        mkdir ~/.ssh
+        cp "$WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519" ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        cp "$WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519.pub" ~/.ssh/id_ed25519.pub
+        chmod 600 ~/.ssh/id_ed25519.pub
+        echo "Copying the ssh keys from Windows - done"
+    else
+        echo 'Generating SSH keys...'
+        ssh-keygen -t ed25519 -C "$(git config --global user.email)" -f ~/.ssh/id_ed25519
+        cat >&1 <<EOF
+Associate your public SSH key with your Github account.
+Go to https://github.com/settings/keys (Settings - SSH and GPG keys) and add a new SSH key:
 
-ssh -T git@github.com
+$(cat ~/.ssh/id_ed25519.pub)
 
-# See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/working-with-ssh-key-passphrases#auto-launching-ssh-agent-on-git-for-windows
-echo "Adding script for auto-launching ssh-agent to .bashrc"
-cat >> ~/.bashrc <<EOL
+EOF
+        echo 'Generating SSH keys - done'
+    fi
+
+    # Connecting to GitHub with SSH
+
+    echo 'Adding github.com to ~/.ssh/known_hosts...'
+    echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >> ~/.ssh/known_hosts
+    echo 'Adding github.com to ~/.ssh/known_hosts - done'
+    ssh -T git@github.com
+
+    # See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/working-with-ssh-key-passphrases#auto-launching-ssh-agent-on-git-for-windows
+    echo 'Adding script for auto-launching ssh-agent to ~/.bashrc...'
+    cat >> ~/.bashrc <<EOF
 
 # Auto-launching ssh-agent
 
 env=~/.ssh/agent.env
 
-agent_load_env () { test -f "$env" && . "$env" >| /dev/null ; }
+function agent_load_env () {
+    test -f "\$env" && . "\$env" >| /dev/null
+}
 
-agent_start () {
-    (umask 077; ssh-agent >| "$env")
-    . "$env" >| /dev/null ; }
+function agent_start () {
+    (umask 077; ssh-agent >| "\$env")
+    . "\$env" >| /dev/null
+}
 
 agent_load_env
 
 # agent_run_state: 0=agent running w/ key; 1=agent w/o key; 2=agent not running
-agent_run_state=$(ssh-add -l >| /dev/null 2>&1; echo $?)
+agent_run_state=$(ssh-add -l >| /dev/null 2>&1; echo \$?)
 
-if [ ! "$SSH_AUTH_SOCK" ] || [ $agent_run_state = 2 ]; then
+if [ ! "\$SSH_AUTH_SOCK" ] || [ \$agent_run_state = 2 ]; then
     agent_start
     ssh-add
-elif [ "$SSH_AUTH_SOCK" ] && [ $agent_run_state = 1 ]; then
+elif [ "\$SSH_AUTH_SOCK" ] && [ \$agent_run_state = 1 ]; then
     ssh-add
 fi
 
 unset env
-EOL
-
-source ~/.bashrc
+EOF
+    source ~/.bashrc
+    echo 'Adding script for auto-launching ssh-agent to ~/.bashrc - done'
+fi
