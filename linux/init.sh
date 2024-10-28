@@ -188,3 +188,37 @@ EOF
     source ~/.bashrc
     echo 'Adding script for auto-launching ssh-agent to ~/.bashrc - done'
 fi
+
+# Nerd fonts
+# See the patched fonts: https://www.nerdfonts.com/
+# See the original fonts: https://www.jetbrains.com/lp/mono/
+NERD_FONTS_NAME='JetBrainsMono'
+if [ -z "$(fc-list | grep $NERD_FONTS_NAME)" ]; then
+    NERD_FONTS_VERSION="$(git ls-remote --tags --sort=-version:refname \
+                https://github.com/ryanoasis/nerd-fonts \
+                | head --lines=1 \
+                | grep -oE 'v[0-9]+(\.[0-9]+(\.[0-9]+)?)?' \
+                )"
+
+    echo "Downloading $NERD_FONTS_NAME Nerd Fonts $NERD_FONTS_VERSION from https://github.com/ryanoasis/nerd-fonts..."
+    wget https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD_FONTS_VERSION/$NERD_FONTS_NAME.tar.xz
+    echo "Downloading $NERD_FONTS_NAME Nerd Fonts $NERD_FONTS_VERSION from https://github.com/ryanoasis/nerd-fonts - done"
+
+    echo "Extracting $NERD_FONTS_NAME.tar.xz to ~/.local/share/fonts/truetype/$NERD_FONTS_NAME..."
+    mkdir -p ~/.local/share/fonts/truetype/$NERD_FONTS_NAME
+    tar -Jxf $NERD_FONTS_NAME.tar.xz --directory ~/.local/share/fonts/truetype/$NERD_FONTS_NAME/
+    rm $NERD_FONTS_NAME.tar.xz
+    echo "Extracting $NERD_FONTS_NAME.tar.xz to ~/.local/share/fonts/truetype/$NERD_FONTS_NAME - done"
+
+    echo "Installing $NERD_FONTS_NAME Nerd Fonts..."
+    fc-cache -f -v
+    echo "Installing $NERD_FONTS_NAME Nerd Fonts - done"
+
+    if [ -z "$(fc-list | grep $NERD_FONTS_NAME)" ]; then
+        echo "Fatal error: $NERD_FONTS_NAME Nerd Fonts is not found after the installation!" >&2
+        exit 1
+    fi
+
+    unset NERD_FONT_VERSION
+fi
+unset NERD_FONTS_NAME
