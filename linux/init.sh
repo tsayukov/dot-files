@@ -129,9 +129,9 @@ if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]; then
     if [ "$AS_WSL" = 'true' ]; then
         echo 'Copying the ssh keys from Windows...'
         mkdir ~/.ssh
-        cp "$WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519" ~/.ssh/id_ed25519
+        cp $WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519 ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
-        cp "$WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519.pub" ~/.ssh/id_ed25519.pub
+        cp $WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519.pub ~/.ssh/id_ed25519.pub
         chmod 600 ~/.ssh/id_ed25519.pub
         echo "Copying the ssh keys from Windows - done"
     else
