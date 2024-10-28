@@ -9,5 +9,6 @@
   st = status
   adda = add --all
   cm = commit -m
+        cma = commit --amend
   co = checkout
   cob = checkout -b
