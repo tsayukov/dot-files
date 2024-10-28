@@ -1,6 +1,74 @@
 #!/usr/bin/env bash
+set -e
 
-WINDOWS_USER=tsayukov
+if [ $(id -u) -ne 0 ]; then
+    cat >&2 <<EOF
+Running the script requires the superuser privilege.
+You can type:
+
+  sudo !!
+
+EOF
+    exit 1
+fi
+
+# Parse arguments
+
+function linux_init_usage() {
+    cat <<EOF
+Usage: init.sh [--help | --wsl] [--]
+Basic initialization of Linux.
+
+  --help  display this help and exit
+  --wsl   the current Linux system will be treated as a part of WSL
+
+EOF
+}
+
+function get_windows_USERPROFILE() {
+    read -p "Enter Windows' USERPROFILE: " WINDOWS_USERPROFILE
+    WINDOWS_USERPROFILE_PATH="/mnt/c/users/$WINDOWS_USERPROFILE"
+    if [ -d "$WINDOWS_USERPROFILE_PATH" ]; then
+        echo "Found Windows' USERPROFILE: $WINDOWS_USERPROFILE"
+    else
+cat >&2 <<EOF
+Windows' USERPROFILE '$WINDOWS_USERPROFILE' is not found.
+It was searched in the following places:
+  $WINDOWS_USERPROFILE_PATH
+
+EOF
+        exit 1
+    fi
+}
+
+AS_WSL=false
+
+while true; do
+    case "$1" in
+        (--help)
+            linux_init_usage
+            exit 0
+        ;;
+        (--wsl)
+            get_windows_USERPROFILE
+            AS_WSL=true
+            shift
+            break
+        ;;
+        (--)
+            shift
+            break
+        ;;
+        ('')
+            break
+        ;;
+        (*)
+            echo "Unknown argument: $1" >&2
+            exit 1
+        ;;
+    esac
+done
+
 
 sudo apt update && sudo apt upgrade
 
