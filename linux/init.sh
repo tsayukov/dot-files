@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-set -e
 
 if [ $(id -u) -ne 0 ]; then
     cat >&2 <<EOF
 Running the script requires the superuser privilege.
-You can type:
+Enter the code below to re-run the script with the necessary privilege:
 
   sudo !!
 
@@ -12,9 +11,104 @@ EOF
     exit 1
 fi
 
-# Parse arguments
+############################### Helper variables ###############################
 
-function linux_init_usage() {
+AS_WSL=false
+RCFILE=~/.bashrc
+
+# ROOT will be defined below
+
+USER_TRUE_TYPE_FONTS_ROOT=~/.local/share/fonts/truetype
+NERD_FONTS_NAME='JetBrainsMono'
+
+############################### Helper functions ###############################
+
+function bool() {
+    case "$1" in
+        (true)
+            return 0
+        ;;
+        (false)
+            return 1
+        ;;
+        (*)
+            fail "Boolean value must be either 'true' or 'false', but got: '$1'"
+        ;;
+    esac
+}
+
+function print_color_text() {
+    local color="$1"
+    local text="$2"
+
+    local no_color='\033[0m'
+    printf "${color}${text}${no_color} "
+}
+
+function message_ongoing() {
+    local blue='\033[0;34m'
+    print_color_text $blue 
+    echo "$@"
+}
+
+function message_success() {
+    local green='\033[0;32m'
+    print_color_text $green ✔
+    echo "$@"
+}
+
+function message_fail() {
+    local red='\033[0;31m'
+    print_color_text $red ✘
+    echo "$@" >&2
+}
+
+function do_logging() {
+    LOG_MESSAGE="$1"
+    message_ongoing "$LOG_MESSAGE"
+}
+
+function fail() {
+    if [ ! -z "$LOG_MESSAGE" ]; then
+        message_fail "$LOG_MESSAGE - fail"
+    elif [ ! -z "$1" ]; then
+        message_fail "$1"
+    else
+        message_fail "fail (no message was provided)"
+    fi
+    exit 1
+}
+
+function done_logging() {
+    message_success "$LOG_MESSAGE - done"
+    unset LOG_MESSAGE
+}
+
+function does_command_exist() {
+    if [ $(command -v $1) ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function append_new_line_to() {
+    echo -e '\n' >> $1
+}
+
+function init_windows_userprofile() {
+    # TODO: figure out how to get %USERPROFILE% automatically
+    read -p "Enter Windows USERPROFILE (a path of the '/mnt/c/users/<user_name>' form): " \
+            WINDOWS_USERPROFILE \
+            && test -d "$WINDOWS_USERPROFILE" \
+            || fail "Windows USERPROFILE '$WINDOWS_USERPROFILE' is not found!"
+
+    message_success "Found Windows USERPROFILE: '$WINDOWS_USERPROFILE'"
+}
+
+############################### Parse arguments ################################
+
+function help_output() {
     cat <<EOF
 Usage: init.sh [--help | --wsl] [--]
 Basic initialization of Linux.
@@ -25,32 +119,14 @@ Basic initialization of Linux.
 EOF
 }
 
-function get_windows_USERPROFILE() {
-    read -p "Enter Windows' USERPROFILE: " WINDOWS_USERPROFILE
-    WINDOWS_USERPROFILE_PATH="/mnt/c/users/$WINDOWS_USERPROFILE"
-    if [ -d "$WINDOWS_USERPROFILE_PATH" ]; then
-        echo "Found Windows' USERPROFILE: $WINDOWS_USERPROFILE"
-    else
-cat >&2 <<EOF
-Windows' USERPROFILE '$WINDOWS_USERPROFILE' is not found.
-It was searched in the following places:
-  $WINDOWS_USERPROFILE_PATH
-
-EOF
-        exit 1
-    fi
-}
-
-AS_WSL=false
-
 while true; do
     case "$1" in
         (--help)
-            linux_init_usage
+            help_output
             exit 0
         ;;
         (--wsl)
-            get_windows_USERPROFILE
+            init_windows_userprofile
             AS_WSL=true
             shift
             break
@@ -63,62 +139,85 @@ while true; do
             break
         ;;
         (*)
-            echo "Unknown argument: $1" >&2
-            exit 1
+            fail "Unknown argument: $1"
         ;;
     esac
 done
 
+################## Installing and configuring basic packages ###################
 
-sudo apt update && sudo apt upgrade
+sudo apt update && sudo apt upgrade || fail
 
 # Homebrew on Linux
 # See: https://docs.brew.sh/Homebrew-on-Linux
 
-if [ ! $(command -v brew) ]; then
-    echo 'Installing requirements for homebrew...'
-    sudo apt install build-essential procps curl file git
-    echo 'Installing requirements for homebrew - done'
+if ! does_command_exist brew; then
+    do_logging 'Installing requirements for homebrew'
+    sudo apt install build-essential procps curl file git || fail
+    done_logging
 
-    echo 'Installing homebrew...'
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    echo 'Installing homebrew - done'
+    do_logging 'Installing homebrew'
+    /usr/bin/env bash -c \
+            "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+            || fail
+    done_logging
 
-    echo 'Adding homebrew to the PATH and bash shell rcfile...'
-    test -d /home/linuxbrew/.linuxbrew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    echo -e '\n' >> ~/.bashrc
-    echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> ~/.bashrc
-    echo 'Adding homebrew to the PATH and bash shell rcfile - done'
+    do_logging 'Adding homebrew to the PATH and bash shell rcfile'
+    test -d /home/linuxbrew/.linuxbrew \
+            && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" \
+            || fail
+    append_new_line_to $RCFILE
+    echo '# Add Homebrew to the PATH' \
+            && echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> $RCFILE \
+            && echo 'Adding homebrew to the PATH and bash shell rcfile - done' \
+            || fail
+    done_logging
+fi
+
+# Check if the script is running in the proper directory
+
+ROOT="$(git rev-parse --show-toplevel)"
+if [ "$(pwd)" != "$ROOT/linux" ]; then
+    fail "This script must be run in the '<dot_files_repository>/linux' directory"
 fi
 
 # Install libfuse2 for AppImages
-
-sudo apt install libfuse2
+if ! bool AS_WSL; then
+    sudo apt install libfuse2 || fail
+fi
 
 # Install vim
 
-if [ ! $(command -v vim) ]; then
-    echo 'Install vim...'
-    brew install vim
-    echo 'Install vim - done'
+if ! does_command_exist vim; then
+    do_logging 'Install vim'
+    brew install vim || fail
+    done_logging
 fi
 
 # Git configuration
 
 if [ -z "$(git config --global user.name)" ]; then
-    read -p 'Git config: enter your name: ' GIT_USER_NAME
-    git config --global user.name "$GIT_USER_NAME"
-    echo "Git config: set the user's name to '$(git config --global user.name)'"
+    read -p 'Git config: enter your name: ' GIT_USER_NAME \
+            && git config --global user.name "$GIT_USER_NAME" \
+            || fail
+    message_success "Git config: set the user's name to '$(git config --global user.name)'"
     unset GIT_USER_NAME
 
-    read -p 'Git config: enter your email: ' GIT_USER_EMAIL
-    git config --global user.email "$GIT_USER_EMAIL"
-    echo "Git config: set the user's email to '$(git config --global user.email)'"
+    read -p 'Git config: enter your email: ' GIT_USER_EMAIL \
+            && git config --global user.email "$GIT_USER_EMAIL" \
+            || fail
+    message_success "Git config: set the user's email to '$(git config --global user.email)'"
     unset GIT_USER_EMAIL
 
-    echo "Git config: append other common parameters to ~/.gitconfig..."
-    cat ../common/.gitconfig >> ~/.gitconfig
-    echo "Git config: append other common parameters to ~/.gitconfig - done"
+    do_logging "Git config: append other common parameters to ~/.gitconfig"
+    cat $ROOT/common/.gitconfig >> ~/.gitconfig || fail
+    done_logging
+fi
+
+# Install Bitwarden
+
+if ! bool AS_WSL; then
+    # TODO: download Bitwarden
 fi
 
 # SSH configuration
@@ -126,47 +225,54 @@ fi
 if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]; then
     # Copying/generating SSH keys
 
-    if [ "$AS_WSL" = 'true' ]; then
-        echo 'Copying the ssh keys from Windows...'
-        mkdir ~/.ssh
-        cp $WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519 ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        cp $WINDOWS_USERPROFILE_PATH/.ssh/id_ed25519.pub ~/.ssh/id_ed25519.pub
-        chmod 600 ~/.ssh/id_ed25519.pub
-        echo "Copying the ssh keys from Windows - done"
+    if bool $AS_WSL; then
+        do_logging 'Copying the ssh keys from Windows'
+        mkdir ~/.ssh \
+                && cp $WINDOWS_USERPROFILE/.ssh/id_ed25519 ~/.ssh/id_ed25519 \
+                && chmod 600 ~/.ssh/id_ed25519 \
+                && cp $WINDOWS_USERPROFILE/.ssh/id_ed25519.pub ~/.ssh/id_ed25519.pub \
+                && chmod 600 ~/.ssh/id_ed25519.pub \
+                || fail
+        done_logging
     else
-        echo 'Generating SSH keys...'
-        ssh-keygen -t ed25519 -C "$(git config --global user.email)" -f ~/.ssh/id_ed25519
+        do_logging 'Generating SSH keys'
+        ssh-keygen -t ed25519 -C "$(git config --global user.email)" -f ~/.ssh/id_ed25519 || fail
+        done_logging
+
         cat >&1 <<EOF
 Associate your public SSH key with your Github account.
-Go to https://github.com/settings/keys (Settings - SSH and GPG keys) and add a new SSH key:
+Go to https://github.com/settings/keys (Settings - SSH and GPG keys) and add the new SSH key:
 
 $(cat ~/.ssh/id_ed25519.pub)
 
 EOF
-        echo 'Generating SSH keys - done'
+
+        # TODO: give the user time to associate the SSH key with Github account
     fi
 
     # Connecting to GitHub with SSH
 
-    echo 'Adding github.com to ~/.ssh/known_hosts...'
-    echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >> ~/.ssh/known_hosts
-    echo 'Adding github.com to ~/.ssh/known_hosts - done'
-    ssh -T git@github.com
+    do_logging 'Adding github.com to ~/.ssh/known_hosts'
+    echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+            >> ~/.ssh/known_hosts \
+            || fail
+    done_logging
+
+    ssh -T git@github.com || fail
 
     # See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/working-with-ssh-key-passphrases#auto-launching-ssh-agent-on-git-for-windows
-    echo 'Adding script for auto-launching ssh-agent to ~/.bashrc...'
-    cat >> ~/.bashrc <<EOF
+    do_logging 'Adding script for auto-launching ssh-agent to the rcfile'
+    cat >> $RCFILE <<EOF
 
 # Auto-launching ssh-agent
 
 env=~/.ssh/agent.env
 
-function agent_load_env () {
+function agent_load_env() {
     test -f "\$env" && . "\$env" >| /dev/null
 }
 
-function agent_start () {
+function agent_start() {
     (umask 077; ssh-agent >| "\$env")
     . "\$env" >| /dev/null
 }
@@ -174,7 +280,7 @@ function agent_start () {
 agent_load_env
 
 # agent_run_state: 0=agent running w/ key; 1=agent w/o key; 2=agent not running
-agent_run_state=$(ssh-add -l >| /dev/null 2>&1; echo \$?)
+agent_run_state=\$(ssh-add -l >| /dev/null 2>&1; echo \$?)
 
 if [ ! "\$SSH_AUTH_SOCK" ] || [ \$agent_run_state = 2 ]; then
     agent_start
@@ -183,42 +289,44 @@ elif [ "\$SSH_AUTH_SOCK" ] && [ \$agent_run_state = 1 ]; then
     ssh-add
 fi
 
+unset agent_run_state
 unset env
 EOF
-    source ~/.bashrc
-    echo 'Adding script for auto-launching ssh-agent to ~/.bashrc - done'
+    test $? = 0 && source $RCFILE || fail
+    done_logging
 fi
 
 # Nerd fonts
 # See the patched fonts: https://www.nerdfonts.com/
 # See the original fonts: https://www.jetbrains.com/lp/mono/
-NERD_FONTS_NAME='JetBrainsMono'
 if [ -z "$(fc-list | grep $NERD_FONTS_NAME)" ]; then
-    NERD_FONTS_VERSION="$(git ls-remote --tags --sort=-version:refname \
-                https://github.com/ryanoasis/nerd-fonts \
-                | head --lines=1 \
-                | grep -oE 'v[0-9]+(\.[0-9]+(\.[0-9]+)?)?' \
-                )"
+    NERD_FONTS_VERSION="$(\
+            git ls-remote --tags --sort=-version:refname \
+                    https://github.com/ryanoasis/nerd-fonts \
+                    | head --lines=1 \
+                    | grep -oE 'v[0-9]+(\.[0-9]+(\.[0-9]+)?)?' \
+                    || fail)"
 
-    echo "Downloading $NERD_FONTS_NAME Nerd Fonts $NERD_FONTS_VERSION from https://github.com/ryanoasis/nerd-fonts..."
-    wget https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD_FONTS_VERSION/$NERD_FONTS_NAME.tar.xz
-    echo "Downloading $NERD_FONTS_NAME Nerd Fonts $NERD_FONTS_VERSION from https://github.com/ryanoasis/nerd-fonts - done"
+    do_logging "Downloading $NERD_FONTS_NAME Nerd Fonts $NERD_FONTS_VERSION "\
+               "from https://github.com/ryanoasis/nerd-fonts"
+    wget https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD_FONTS_VERSION/$NERD_FONTS_NAME.tar.xz \
+            || fail
+    done_logging
+    unset NERD_FONTS_VERSION
 
-    echo "Extracting $NERD_FONTS_NAME.tar.xz to ~/.local/share/fonts/truetype/$NERD_FONTS_NAME..."
-    mkdir -p ~/.local/share/fonts/truetype/$NERD_FONTS_NAME
-    tar -Jxf $NERD_FONTS_NAME.tar.xz --directory ~/.local/share/fonts/truetype/$NERD_FONTS_NAME/
-    rm $NERD_FONTS_NAME.tar.xz
-    echo "Extracting $NERD_FONTS_NAME.tar.xz to ~/.local/share/fonts/truetype/$NERD_FONTS_NAME - done"
+    echo "Extracting $NERD_FONTS_NAME.tar.xz to $USER_TRUE_TYPE_FONTS_ROOT/$NERD_FONTS_NAME"
+    mkdir -p $USER_TRUE_TYPE_FONTS_ROOT/$NERD_FONTS_NAME \
+            && tar -Jxf $NERD_FONTS_NAME.tar.xz \
+                   --directory $USER_TRUE_TYPE_FONTS_ROOT/$NERD_FONTS_NAME/ \
+            && rm $NERD_FONTS_NAME.tar.xz \
+            || fail
+    done_logging
 
-    echo "Installing $NERD_FONTS_NAME Nerd Fonts..."
-    fc-cache -f -v
-    echo "Installing $NERD_FONTS_NAME Nerd Fonts - done"
+    do_logging "Installing $NERD_FONTS_NAME Nerd Fonts"
+    fc-cache -f -v || fail
+    done_logging
 
     if [ -z "$(fc-list | grep $NERD_FONTS_NAME)" ]; then
-        echo "Fatal error: $NERD_FONTS_NAME Nerd Fonts is not found after the installation!" >&2
-        exit 1
+        fail "Fatal error: $NERD_FONTS_NAME Nerd Fonts is not found after the installation!"
     fi
-
-    unset NERD_FONT_VERSION
 fi
-unset NERD_FONTS_NAME
