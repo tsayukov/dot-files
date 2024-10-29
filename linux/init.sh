@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
 
-if [ $(id -u) -ne 0 ]; then
-    cat >&2 <<EOF
-Running the script requires the superuser privilege.
-Enter the code below to re-run the script with the necessary privilege:
-
-  sudo !!
-
-EOF
-    exit 1
-fi
-
 ############################### Helper variables ###############################
 
 AS_WSL=false
@@ -146,8 +135,6 @@ done
 
 ################## Installing and configuring basic packages ###################
 
-sudo apt update && sudo apt upgrade || fail
-
 # Create the user's directories
 mkdir ~/Apps     # For *.AppImage
 mkdir ~/Projects # For projects
@@ -156,10 +143,6 @@ mkdir ~/Projects # For projects
 # See: https://docs.brew.sh/Homebrew-on-Linux
 
 if ! does_command_exist brew; then
-    do_logging 'Installing requirements for homebrew'
-    sudo apt install build-essential procps curl file git || fail
-    done_logging
-
     do_logging 'Installing homebrew'
     /usr/bin/env bash -c \
             "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
@@ -183,11 +166,6 @@ fi
 ROOT="$(git rev-parse --show-toplevel)"
 if [ "$(pwd)" != "$ROOT/linux" ]; then
     fail "This script must be run in the '<dot_files_repository>/linux' directory"
-fi
-
-# Install libfuse2 for AppImages
-if ! bool AS_WSL; then
-    sudo apt install libfuse2 || fail
 fi
 
 # Install vim
