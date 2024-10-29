@@ -148,6 +148,10 @@ done
 
 sudo apt update && sudo apt upgrade || fail
 
+# Create the user's directories
+mkdir ~/Apps     # For *.AppImage
+mkdir ~/Projects # For projects
+
 # Homebrew on Linux
 # See: https://docs.brew.sh/Homebrew-on-Linux
 
