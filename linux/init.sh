@@ -136,8 +136,7 @@ done
 ################## Installing and configuring basic packages ###################
 
 # Create the user's directories
-mkdir ~/Apps     # For *.AppImage
-mkdir ~/Projects # For projects
+mkdir -p ~/Apps ~/Projects || fail
 
 # Homebrew on Linux
 # See: https://docs.brew.sh/Homebrew-on-Linux
@@ -276,7 +275,7 @@ EOF
     done_logging
 fi
 
-ssh -T git@github.com || fail
+ssh -T git@github.com
 
 if [ -z "$(grep '# Auto-launching ssh-agent' $RCFILE)" ]; then
     # See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/working-with-ssh-key-passphrases#auto-launching-ssh-agent-on-git-for-windows
