@@ -220,8 +220,39 @@ fi
 
 # Install Bitwarden
 
-if ! bool AS_WSL; then
-    # TODO: download Bitwarden
+if ! bool $AS_WSL -a -z "$(ls ~/Apps | grep Bitwarden)"; then
+    VERSION="$(\
+            git ls-remote --tags --sort=-version:refname \
+                    https://github.com/bitwarden/clients \
+                    desktop-* \
+                    | head --lines=1 \
+                    | grep -oP '(?<=desktop-v).*$' \
+                    || fail 'Cannot get the last Bitwarden version')"
+
+    do_logging "Downloading Bitwarden-v$VERSION to ~/Apps"
+    wget -P ~/Apps https://github.com/bitwarden/clients/releases/download/desktop-v$VERSION/Bitwarden-$VERSION-x86_64.AppImage \
+            && chmod u+x ~/Apps/Bitwarden-$VERSION-x86_64.AppImage \
+            || fail
+    done_logging
+
+    do_logging "Add Bitwarden-v$VERSION to startup programs"
+    mkdir -p ~/.config/autostart || fail
+    cat >> ~/.config/autostart/Bitwarden-$VERSION-x86_64.AppImage.desktop <<EOF
+[Desktop Entry]
+Type=Application
+Exec=$(realpath ~/Apps/Bitwarden-$VERSION-x86_64.AppImage)
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=Bitwarden
+Name=Bitwarden
+Comment[en_US]=Password manager
+Comment=Password manager
+EOF
+    test $? = 0 || fail
+    done_logging
+
+    unset VERSION
 fi
 
 # SSH configuration
