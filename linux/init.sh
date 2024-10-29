@@ -197,7 +197,7 @@ fi
 
 # Install Bitwarden
 
-if ! bool $AS_WSL -a -z "$(ls ~/Apps | grep Bitwarden)"; then
+if ! bool $AS_WSL && [ -z "$(ls ~/Apps | grep Bitwarden)" ]; then
     VERSION="$(\
             git ls-remote --tags --sort=-version:refname \
                     https://github.com/bitwarden/clients \
