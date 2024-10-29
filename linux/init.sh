@@ -348,3 +348,25 @@ if [ -z "$(fc-list | grep $NERD_FONTS_NAME)" ]; then
         fail "Fatal error: $NERD_FONTS_NAME Nerd Fonts is not found after the installation!"
     fi
 fi
+
+# Starship Cross-Shell Prompt
+# See: https://starship.rs
+if ! does_command_exist starship; then
+    do_logging 'Installing Starship cross-shell prompt'
+    brew install starship || fail
+    done_logging
+
+    do_logging 'Copying Starship config to ~/.config/starship.toml'
+    mkdir -p ~/.config \
+            && cp $ROOT/common/starship.toml ~/.config/ \
+            || fail
+    done_logging
+
+    do_logging 'Add Starship runner to the rcfile'
+    append_new_line_to $RCFILE \
+            && echo '# Starship cross-shell prompt runner' >> $RCFILE \
+            && echo 'eval "$(starship init bash)"' >> $RCFILE \
+            && source $RCFILE \
+            || fail
+    done_logging
+fi
