@@ -257,7 +257,7 @@ fi
 
 # SSH configuration
 
-if [ ! -e ~/.ssh/id_ed25519 -o ! -e ~/.ssh/id_ed25519.pub ]; then
+if [ ! -f ~/.ssh/id_ed25519 -o ! -f ~/.ssh/id_ed25519.pub ]; then
     # Copying/generating SSH keys
 
     if bool $AS_WSL; then
@@ -281,20 +281,26 @@ Go to https://github.com/settings/keys (Settings - SSH and GPG keys) and add the
 $(cat ~/.ssh/id_ed25519.pub)
 
 EOF
-
-        # TODO: give the user time to associate the SSH key with Github account
+        read -p 'Press ENTER when your public SSH key is associated with your Github account...'
     fi
+fi
 
-    # Connecting to GitHub with SSH
+# Connecting to GitHub with SSH
 
+if [ -z "$(grep 'github.com' ~/.ssh/known_hosts)" ]; then
     do_logging 'Adding github.com to ~/.ssh/known_hosts'
-    echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
-            >> ~/.ssh/known_hosts \
-            || fail
+    cat >> ~/.ssh/known_hosts <<EOF
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+EOF
+    test $? = 0 || fail
     done_logging
+fi
 
-    ssh -T git@github.com || fail
+ssh -T git@github.com || fail
 
+if [ -z "$(grep '# Auto-launching ssh-agent' $RCFILE)" ]; then
     # See: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/working-with-ssh-key-passphrases#auto-launching-ssh-agent-on-git-for-windows
     do_logging 'Adding script for auto-launching ssh-agent to the rcfile'
     cat >> $RCFILE <<EOF
